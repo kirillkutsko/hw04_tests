@@ -55,7 +55,7 @@ class PostFormTests(TestCase):
             'posts:profile', args=[self.user.username])
         )
 
-        self.assertEqual(Post.objects.count(), posts_count+1)
+        self.assertEqual(Post.objects.count(), posts_count + 1)
 
         self.assertTrue(
             Post.objects.filter(
