@@ -65,12 +65,17 @@ class ViewsTests(TestCase):
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост',
+            group=cls.group,
         )
         cls.true_group = Group.objects.create(
             title='Тестовая группа2',
             slug='test_slug2',
             description='Тестовое описание2',
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
 
     def setUp(self):
         self.guest_client = Client()
