@@ -6,6 +6,12 @@ SECRET_KEY = 'be@6zamzvnyjelx#-p!$*-8(qzefr8w6h^f&-0az4qf5wz!@%&'
 
 DEBUG = True
 
+MEDIA_URL = '/media/'
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
+
 POST_PER_PAGE = 10
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
@@ -34,6 +40,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'core.apps.CoreConfig',
     'about.apps.AboutConfig',
+    'sorl.thumbnail',
 ]
 
 MIDDLEWARE = [
