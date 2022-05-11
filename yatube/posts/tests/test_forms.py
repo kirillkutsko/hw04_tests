@@ -1,4 +1,3 @@
-from posts.forms import PostForm
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -25,8 +24,6 @@ class PostFormTests(TestCase):
             group=cls.group,
         )
 
-        cls.form = PostForm()
-
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -42,7 +39,7 @@ class PostFormTests(TestCase):
 
         form_data = {
             'text': 'Текст поста',
-            'group': Group.objects.get(slug="test-slug").id,
+            'group': self.group.id,
         }
 
         response = self.authorized_client.post(
@@ -61,6 +58,23 @@ class PostFormTests(TestCase):
             Post.objects.filter(
                 text='Текст поста',
                 author=self.user,
-                group=Group.objects.get(slug="test-slug")
+                group=self.group
             ).exists()
+        )
+
+    def test_edit_post(self):
+        post = PostFormTests.post
+
+        form_data = {
+            'text': 'Изменяемый текст поста',
+            'group': self.group.id
+        }
+
+        self.authorized_client.post(
+            reverse('posts:post_edit', kwargs={'post_id': f'{post.id}'}),
+            data=form_data,
+        )
+
+        self.assertEqual(
+            Post.objects.get(id=post.id).text, 'Изменяемый текст поста'
         )
