@@ -1,10 +1,14 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Post, Group
+from yatube.settings import POST_PER_PAGE
+
+from ..models import Group, Post
 
 User = get_user_model()
+FIRST_PAGE_POSTS = 13
+SECOND_PAGE_POSTS = 3
 
 
 class ViewsTests(TestCase):
@@ -52,7 +56,7 @@ class ViewsTests(TestCase):
                 'posts:profile', args=[self.user.username])),
         ]
         for fixture, page in fixture_page:
-            with self.subTest():
+            with self.subTest(fixture=fixture):
                 response = self.guest_client.get(page)
                 self.assertIn(fixture, response.context['page_obj'])
 
@@ -82,3 +86,54 @@ class ViewsTests(TestCase):
             reverse('posts:group_posts',
                     args=[self.true_group.slug]))
         self.assertNotIn(self.post, response.context['page_obj'])
+
+
+class PaginatorViewsTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.authorized_author = Client()
+        cls.author = User.objects.create_user(username='NoName')
+        cls.group = Group.objects.create(
+            title='test_title',
+            description='test_description',
+            slug='test-slug'
+        )
+
+    def setUp(self):
+        for post_temp in range(FIRST_PAGE_POSTS):
+            Post.objects.create(
+                text=f'text{post_temp}', author=self.author, group=self.group
+            )
+
+    def test_first_page_contains_ten_records(self):
+        templates_pages_names = {
+            'posts/index.html': reverse('posts:index'),
+            'posts/group_posts.html':
+                reverse('posts:group_posts', kwargs={'slug': self.group.slug}),
+            'posts/profile.html':
+                reverse('posts:profile', kwargs={'username': self.author}),
+        }
+        for template, reverse_name in templates_pages_names.items():
+            with self.subTest(reverse_name=reverse_name):
+                response = self.client.get(reverse_name)
+                self.assertEqual(
+                    len(response.context['page_obj']), POST_PER_PAGE
+                )
+
+    def test_second_page_contains_three_records(self):
+        templates_pages_names = {
+            'posts/index.html': reverse('posts:index') + '?page=2',
+            'posts/group_posts.html':
+                reverse('posts:group_posts',
+                        kwargs={'slug': self.group.slug}) + '?page=2',
+            'posts/profile.html':
+                reverse('posts:profile',
+                        kwargs={'username': self.author}) + '?page=2',
+        }
+        for template, reverse_name in templates_pages_names.items():
+            with self.subTest(reverse_name=reverse_name):
+                response = self.client.get(reverse_name)
+                self.assertEqual(len(
+                    response.context['page_obj']), SECOND_PAGE_POSTS
+                )
