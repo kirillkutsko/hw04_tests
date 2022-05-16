@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from yatube.settings import POST_PER_PAGE
 
-from ..models import Group, Post
+from ..models import Group, Post, Comment
 
 User = get_user_model()
 FIRST_PAGE_POSTS = 13
@@ -107,6 +107,36 @@ class ViewsTests(TestCase):
             reverse('posts:group_posts',
                     args=[self.true_group.slug]))
         self.assertNotIn(self.post, response.context['page_obj'])
+
+    def test_add_posts_comment(self):
+        """
+        Проверить добавление комментария.
+        """
+        comment_count = Comment.objects.count()
+        new_comment = {
+            'text': 'text-test'
+        }
+        self.authorized_client.post(
+            reverse('posts:add_comment', args=[self.post.id]),
+            data=new_comment,
+            follow=True,
+        )
+        self.assertEqual(Comment.objects.count(), comment_count + 1)
+
+    def test_guest_client_cant_comment(self):
+        """
+        Не авторизованный пользователь не может комментировать.
+        """
+        comment_count = Comment.objects.count()
+        new_comment = {
+            'text': 'text-test'
+        }
+        self.guest_client.post(
+            reverse('posts:add_comment', args=[self.post.id]),
+            data=new_comment,
+            follow=True,
+        )
+        self.assertEqual(Comment.objects.count(), comment_count)
 
 
 class PaginatorViewsTest(TestCase):

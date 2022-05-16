@@ -18,6 +18,7 @@ class PostFormTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
         cls.user = User.objects.create_user(username='Kirill')
         cls.group = Group.objects.create(
             title='Тестовый заголовок',
@@ -42,11 +43,6 @@ class PostFormTests(TestCase):
             text='Текст постa',
             group=cls.group,
         )
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.guest_client = Client()
@@ -95,17 +91,14 @@ class PostFormTests(TestCase):
     def test_edit_post(self):
         """Валидная форма изменяет запись в Post."""
         post = PostFormTests.post
-
         form_data = {
             'text': 'Изменяемый текст поста',
             'group': self.group.id
         }
-
         self.authorized_client.post(
             reverse('posts:post_edit', kwargs={'post_id': f'{post.id}'}),
             data=form_data,
         )
-
         self.assertEqual(
             Post.objects.get(id=post.id).text, 'Изменяемый текст поста'
         )
