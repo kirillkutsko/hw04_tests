@@ -4,7 +4,7 @@ from django.db.models import SlugField
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import PostForm, CommentForm
+from .forms import CommentForm, PostForm
 from .models import Group, Post
 from .utils import paginator
 
