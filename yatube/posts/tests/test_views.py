@@ -1,32 +1,41 @@
 import shutil
 import tempfile
-
+from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from yatube.settings import POST_PER_PAGE
-
 from ..models import Group, Post, Comment
 
 User = get_user_model()
-FIRST_PAGE_POSTS = 13
+POSTS = 13
 SECOND_PAGE_POSTS = 3
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+POST_PER_PAGE = 10
 
 
 class ViewsTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
         cls.user = User.objects.create_user(username='NoNameAuthor')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test_slug',
             description='Тестовое описание'
         )
+        cls.index = reverse('posts:index')
+        cls.group_list = reverse('posts:group_posts', kwargs={
+            'slug': 'test_slug'
+        })
+        cls.profile = reverse('posts:profile', kwargs={
+            'username': 'NoNameAuthor'
+        })
+        cls.post_detail = reverse('posts:post_detail', kwargs={'post_id': '1'})
+        cls.post_edit = reverse('posts:post_edit', kwargs={'post_id': '1'})
         cls.small_gif = (
             b'\x47\x49\x46\x38\x39\x61\x02\x00'
             b'\x01\x00\x80\x00\x00\x00\x00\x00'
@@ -52,52 +61,56 @@ class ViewsTests(TestCase):
             description='Тестовое описание2',
         )
 
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
-
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
-    def test_index_page_show_correct_context(self):
-        """
-        Проверить правильность контекста у постов на страницах:
-        posts:index,
-        posts:group_posts,
-        posts:profile.
-        """
-        fixture_page = [
-            (self.post, reverse('posts:index')),
-            (self.post, reverse(
-                'posts:group_posts', args=[self.group.slug])),
-            (self.post, reverse(
-                'posts:profile', args=[self.user.username])),
-        ]
-        for fixture, page in fixture_page:
-            with self.subTest(fixture=fixture):
-                response = self.guest_client.get(page)
-                self.assertIn(fixture, response.context['page_obj'])
+    def test_index_correct_context(self):
+        """Проверить контекст шаблона index."""
+        response = self.authorized_client.get(self.index)
+        self.assertEqual(response.context['post'], self.post)
 
-    def test_template_pages_show_correct_context(self):
-        """
-        Проверить правильность контекста у шаблонов posts:group_posts,
-        posts:profile.
-        """
-        fixture_context = [
-            (self.group, 'group', reverse(
-                'posts:group_posts', args=[self.group.slug])),
-            (self.user, 'author', reverse(
-                'posts:profile', args=[self.user.username])),
-            (self.post, 'post', reverse(
-                'posts:post_detail', args=[self.post.id])),
-        ]
-        for fixture, context, address in fixture_context:
-            with self.subTest():
-                response = self.guest_client.get(address)
-                self.assertEqual(fixture, response.context[context])
+    def test_group_posts_correct_context(self):
+        """Проверить контекст шаблона group_posts."""
+        response = self.authorized_client.get(self.group_list)
+        self.assertEqual(response.context['post'], self.post)
+        self.assertEqual(response.context['group'], self.group)
+
+    def test_profile_correct_context(self):
+        """Проверить контекст шаблона profile."""
+        response = self.authorized_client.get(self.profile)
+        self.assertEqual(response.context['post'], self.post)
+        self.assertEqual(response.context['author'], self.user)
+
+    def test_post_detail_correct_context(self):
+        """Проверить контекст шаблона post_detail."""
+        response = self.authorized_client.get(self.post_detail)
+        self.assertEqual(response.context['post'], self.post)
+
+    def test_create_post_edit_correct_context(self):
+        """Проверить контекст шаблона post_edit при редактировании."""
+        form_fields = {
+            'text': forms.fields.CharField,
+            'group': forms.fields.ChoiceField,
+        }
+        response = self.authorized_client.get(self.post_edit)
+        for value, expected in form_fields.items():
+            with self.subTest(value=value):
+                form_field = response.context.get('form').fields.get(value)
+                self.assertIsInstance(form_field, expected)
+
+    def test_create_post_correct_context(self):
+        """Проверить контекст шаблона post_edit при создании."""
+        form_fields = {
+            'text': forms.fields.CharField,
+            'group': forms.fields.ChoiceField,
+        }
+        response = self.authorized_client.get(reverse('posts:post_create'))
+        for value, expected in form_fields.items():
+            with self.subTest(value=value):
+                form_field = response.context.get('form').fields.get(value)
+                self.assertIsInstance(form_field, expected)
 
     def test_post_in_true_group(self):
         """
@@ -152,7 +165,7 @@ class PaginatorViewsTest(TestCase):
         )
 
     def setUp(self):
-        for post_temp in range(FIRST_PAGE_POSTS):
+        for post_temp in range(POSTS):
             Post.objects.create(
                 text=f'text{post_temp}', author=self.author, group=self.group
             )

@@ -84,7 +84,7 @@ class PostFormTests(TestCase):
                 text='Текст поста',
                 author=self.user,
                 group=self.group.id,
-                image='posts/small.gif'
+                # image='posts/small.gif'
             ).exists()
         )
 

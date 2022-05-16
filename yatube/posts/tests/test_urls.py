@@ -22,6 +22,7 @@ class StaticURLTests(TestCase):
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост п',
+            group=cls.group,
         )
 
     def setUp(self):
@@ -33,25 +34,22 @@ class StaticURLTests(TestCase):
         """
         Доступность url адресов для авторизованного пользователя
         """
-        test_urls = (
-            '/',
-            '/group/test_slug/',
-            '/profile/auth/',
-            f'/posts/{self.post.id}/',
-            '/create/'
-        )
-        for url in test_urls:
-            with self.subTest():
-                response = self.authorized_client.get(url)
+        test_urls = {
+            'posts/index.html': reverse('posts:index'),
+            'posts/group_list.html': reverse(
+                'posts:group_posts', kwargs={'slug': self.group.slug}
+            ),
+            'posts/profile.html': reverse(
+                'posts:profile', args=[self.user.username]
+            ),
+            'posts/post_detail.html': reverse(
+                'posts:post_detail', kwargs={'post_id': self.post.pk}
+            ),
+        }
+        for template, reverse_name in test_urls.items():
+            with self.subTest(reverse_name=reverse_name):
+                response = self.client.get(reverse_name)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_edit_url_for_author_exists(self):
-        """
-        Cтраница редактирования поста доступна только автору
-        """
-        testing_url = f'/posts/{self.post.id}/edit/'
-        response = self.authorized_client.get(testing_url)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_pages_uses_correct_template(self):
         """
@@ -72,6 +70,7 @@ class StaticURLTests(TestCase):
             with self.subTest(reverse_name=reverse_name):
                 response = self.guest_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_pages_uses_correct_template_user(self):
         """URL-адрес использует соответствующий шаблон для auth_users"""
@@ -104,7 +103,7 @@ class StaticURLTests(TestCase):
             response, '/auth/login/?next=/create/'
         )
 
-    def test_1post_create_url_redirect_anonymous_on_admin_login(self):
+    def test_post_edit_url_redirect_anonymous_on_admin_login(self):
         """
         Страница по адресу /edit/ перенаправит анонимного
         пользователя на страницу логина.
